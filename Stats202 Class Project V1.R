@@ -165,4 +165,34 @@ head(train2[folds[[1]],],n=10)
 head(train2[folds[[2]],],n=10)
 head(train2[-folds[[1]],],n=10)
 
+# Build up the Decision tree
+accuracy = as.data.frame(matrix(ncol=3, nrow=40))
+names(accuracy) <- c("Mis", "Branches", "Split_Criterion")
+Parms_list <- list("information","gini")
+fold_result <- vector()
+count=1
+# run the recursive partition for different levels of branch depths; for different measurements to select splits
+for(i in 1:12){
+	for(j in 1:2){
+		for (k in 1:5) {
+			class_train <- as.factor(train2[folds[[k]],ncol(train2)])
+			class_test <- as.factor(train2[-folds[[k]],ncol(train2)])
+			fit<-rpart(class_train ~.,train2[folds[[k]],3:12], control=rpart.control(minsplit=0,minbucket=0,cp=-1,maxcompete=0, maxsurrogate=0, usesurrogate=0, xval=0,maxdepth=i), parms = list(split = Parms_list[[j]]),  method='class')
+			fold_result[k] <- sum(class_test!=predict(fit,train2[-folds[[k]],3:12],type="class"))/ length(class_test)
+			}
+		accuracy1 <- mean(fold_result)
+		accuracy[count,1] <- accuracy1
+		accuracy[count,2] <- i
+		accuracy[count,3] <- Parms_list[[j]]
+		count=count+1
+	}
+	}
+accuracy$Split_Criterion <- factor(accuracy$Split_Criterion, levels=c("information","gini"), labels=c("Entropy","Gini"))
+
+# Print out graphe of Decision tree results
+tiff(file = "rpart_misclassification_error.tif", bg = "transparent", width = 720, height = 240, compression = "lzw")
+ggplot(accuracy, aes(x=Branches, y=Mis, colour=Split_Criterion)) + geom_line(aes(group=Split_Criterion)) + geom_point(size=3, aes(shape=Split_Criterion)) + scale_x_continuous(breaks=1:12) + xlab("Number of Branches") +
+  ylab("Misclassification Error") + ggtitle("Decision tree misclassification error") + labs(shape="Split Criterion", colour="Split Criterion")
+dev.off()
+
 # Build up the SVM
